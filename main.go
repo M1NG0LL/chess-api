@@ -1,9 +1,11 @@
 package main
 
 import (
+	"log"
 	account "project/Account"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -13,6 +15,11 @@ var db *gorm.DB
 func main() {
 	router := gin.Default()
 
+	ERR := godotenv.Load()
+    if ERR != nil {
+        log.Fatalf("Error loading .env file")
+    }
+	
 	var err error
 	db, err = gorm.Open(sqlite.Open("chess-api.db"), &gorm.Config{})
 	if err != nil {

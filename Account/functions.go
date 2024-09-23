@@ -3,7 +3,6 @@ package account
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -51,15 +50,8 @@ func CreateAccount(c *gin.Context) {
 	account.Password = string(hashedPassword)
 
 	account.ID = uuid.New().String()
-
-	layout := os.Getenv("LAYOUT")
-	startDate, err := time.Parse(layout, account.StartDay.Format(layout))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid StartDate format"})
-		return
-	}
 	
-	account.StartDay = startDate
+	account.StartDay = time.Now()
 
 	account.IsActive = false
 	account.IsAdmin = false
@@ -72,7 +64,7 @@ func CreateAccount(c *gin.Context) {
 	account.TokenExpiresAt = tokenExpiresAt
 	
 	// Make activation link 
-	activationLink := fmt.Sprintf("https://localhost:8081/activate?token=%s", activationToken)
+	activationLink := fmt.Sprintf("http://localhost:8081/activate?token=%s", activationToken)
 	message := fmt.Sprintf("Welcome to our app!\n\nPlease activate your account by clicking the following link: %s", activationLink)
 
 	if email_err := SendEmail(account.Email, "Account Activation", message); email_err != nil {
@@ -143,9 +135,15 @@ func ForgetPass(c *gin.Context) {
 	}
 
 	Reset_Code := GenerateCode(6)
-	account.code = Reset_Code
+	account.Code = Reset_Code
 
-	passresetLink := fmt.Sprintf("https://localhost:8081/update-password?id=%s&code=%s",account.ID, account.code)
+	// Save the reset code to the database
+	if err := db.Model(&account).Update("Code", Reset_Code).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save reset code"})
+		return
+	}
+
+	passresetLink := fmt.Sprintf("http://localhost:8081/update-password?id=%s&code=%s",account.ID, account.Code)
 	
 	message := fmt.Sprintf("Welcome to our app!\n\nIf you requested password reset click on the following link: %s", passresetLink)
 
@@ -158,30 +156,30 @@ func ForgetPass(c *gin.Context) {
 }
 
 // PUT
-// Func to update password from url in email
+// Func to update password from URL in email
 func UpdatingPassword(c *gin.Context) {
 	accountID := c.Query("id")
 	code := c.Query("code")
 
-	type Pass_reset struct {
-		Password  string
+	type PassReset struct {
+		Password string `json:"password" binding:"required"`
 	}
 
 	var account Account
-	var input Pass_reset
+	var input PassReset
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input: " + err.Error()})
 		return
 	}
 
-	if err := db.Where("id = ? and code = ?", accountID, code).First(&account).Error; err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "ID or code don't exist"})
+	// Check if the account exists and the code is valid
+	if err := db.Where("id = ? AND code = ?", accountID, code).First(&account).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Account not found or invalid code"})
 		return
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.MinCost)
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
 		return
@@ -189,8 +187,8 @@ func UpdatingPassword(c *gin.Context) {
 
 	account.Password = string(hashedPassword)
 
-	if err := db.Model(&Account{}).Where("id = ?", accountID).Updates(account).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update account"})
+	if err := db.Model(&account).Update("password", account.Password).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update password"})
 		return
 	}
 
@@ -219,7 +217,16 @@ func GetMyAccount(c *gin.Context) {
 		return
 	}
 	
-	c.JSON(http.StatusOK, account)
+	c.JSON(http.StatusOK, gin.H{
+		"id":       account.ID,
+		"username": account.Username,
+		"email":    account.Email,
+		"start_day": account.StartDay,
+		"bullet_elo": account.BulletElo,
+		"blitz_elo": account.BlitzElo,
+		"rapid_elo": account.RapidElo,
+		"is_active": account.IsActive,
+	})
 }
 
 // get Accounts if you are admin using the same url of getMyAccount()

@@ -10,7 +10,7 @@ type Account struct {
 	Email     string 		`gorm:"unique;not null"`
 	Password  string
 
-	code 	  string		`gorm:"default:' '"`
+	Code 	  string		`gorm:"default:' '"`
 
 	StartDay time.Time		
 	BulletElo int			`gorm:"default:200"`

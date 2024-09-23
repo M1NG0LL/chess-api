@@ -11,7 +11,7 @@ import (
 // Function to send the activation email
 func SendEmail(to string, subject string, message string) error {
 	from := os.Getenv("EMAIL")
-	password := "dzbl enec tpzb rtwu"
+	password := os.Getenv("PASSWORD")
 
 	// SMTP server configuration
 	smtpHost := "smtp.gmail.com"
