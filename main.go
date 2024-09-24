@@ -5,6 +5,7 @@ import (
 
 	account "project/Account"
 	game "project/Game"
+	team "project/Team"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -36,6 +37,7 @@ func main() {
 	// Initialize account and game packages
 	account.Init(db)
 	game.Init(db)
+	team.Init(db)
 
 	// Account Part ===================================================
 	router.POST("/login", account.Login)
@@ -70,7 +72,14 @@ func main() {
 
 
 	// Team Part  =======================================================
-	
+	protected.POST("/teams", team.CreateTeam)
+	protected.DELETE("/teams", team.DeleteTeam)
+	protected.GET("/teams", team.GetTeams)
+
+	protected.POST("/teams/members", team.AddMember)
+	protected.DELETE("/teams/:id/members", team.RemoveMember)
+	protected.GET("/teams/:id/members", team.GetMembers)
+
 
 	router.Run(":8081")
 }
