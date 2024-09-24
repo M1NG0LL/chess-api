@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/notnil/chess"
 	"gorm.io/gorm"
 )
 
@@ -16,93 +17,136 @@ func Init(database *gorm.DB) {
 }
 
 // POST
-// Func to create Game
+// Create a game 
 func CreateGame(c *gin.Context) {
-    var game Game
+    var input struct {
+        Player1ID string `json:"player1_id"`
+        Player2ID string `json:"player2_id"`
+        GameType  string `json:"game_type"`
+        GameTime  int `json:"game_time"`
+    }
 
-    if err := c.ShouldBindJSON(&game); err != nil {
+    if err := c.ShouldBindJSON(&input); err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
 
-	game.GameID = uuid.New().String()
+    newGame := Game{
+		ID: uuid.New().String(),
+        Player1ID: input.Player1ID,
+        Player2ID: input.Player2ID,
+        StartTime: time.Now(),
+        GameType:  input.GameType,
+        GameTime:  input.GameTime,
+        Status:    "ongoing",
+    }
 
-    game.StartTime = time.Now()
-
-    game.GameStatus = "ongoing" 
-    game.Moves = " "
-
-    if err := db.Create(&game).Error; err != nil {
+    if err := db.Create(&newGame).Error; err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return
     }
-
-    c.JSON(http.StatusCreated, game)
+	
+    c.JSON(http.StatusOK, gin.H{"game": newGame})
 }
 
 // POST
 // Func to Add Move to the game 
 // req = id(from the url)
-func MakeMove(c *gin.Context) {
-	GameID := c.Param("id")
+func EndGame(c *gin.Context) {
+	gameID := c.Param("id")
 
-	type Info struct {
-		Move 		string 		`json:"move"`
-	}
-
-	var input Info
-	if err := c.ShouldBindJSON(&input); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    var game Game
+    if err := db.First(&game, "id = ?", gameID).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Game not found"})
         return
     }
 
-	var game Game
-	if err := db.Where("game_id= ?", GameID).First(&game).Error; err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "Game isn't found"})
-		return
-	}
+    if game.Status == "ongoing" {
+        endTime := time.Now()
+        game.Status = "completed" // Or determine if it was a draw, win, etc.
+        game.EndTime = endTime
 
-	game.MovesNum += 1
-	game.Moves += input.Move
+		if err := db.Save(&game).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Move has been added"})
+		c.JSON(http.StatusOK, gin.H{"message": "Game ended"})
+    } else {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Game already ended"})
+    }
 }
 
-// PUT
-// Func to Edit game status
-func EndGame(c *gin.Context) {
-	GameID := c.Param("id")
+// POST
+// Func to Add Move to the game 
+func MakeMove(c *gin.Context) {
+	gameID := c.Param("id")
 
-	type Info struct {
-		Status 		string 		`json:"status"`
-	}
+    var game Game
+    if err := db.First(&game, "id = ?", gameID).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Game not found"})
+        return
+    }
 
-	var input Info
-	if err := c.ShouldBindJSON(&input); err != nil {
+    var input struct {
+        Move string `json:"move"`
+    }
+    if err := c.ShouldBindJSON(&input); err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
 
-	var game Game
-	if err := db.Where("game_id= ?", GameID).First(&game).Error; err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "Game isn't found"})
+    // Initialize a new chess game
+    chessGame := chess.NewGame()
+
+    // Replay all previous moves from the game
+    for _, moveStr := range game.Moves {
+        move, err := chess.AlgebraicNotation{}.Decode(chessGame.Position(), moveStr)
+        if err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid previous move: " + moveStr})
+            return
+        }
+        chessGame.Move(move)
+    }
+
+    // Apply the new move
+    newMove, err := chess.AlgebraicNotation{}.Decode(chessGame.Position(), input.Move)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid move format"})
+        return
+    }
+
+    if err := chessGame.Move(newMove); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Illegal move"})
+        return
+    }
+
+    game.Moves = append(game.Moves, input.Move)
+	
+    if err := db.Save(&game).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	game.GameStatus = input.Status
+    c.JSON(http.StatusOK, gin.H{"game": game})
+}
 
-	if err := db.Model(&game).Update("GameStatus", input.Status).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save reset code"})
-		return
-	}
+// GET
+// Get all moves of one game 
+func GetMoves(c *gin.Context) {
+    var game Game
+    if err := db.First(&game, "id = ?", c.Param("id")).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Game not found"})
+        return
+    }
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Game's Status has been edited"})
+    c.JSON(http.StatusOK, gin.H{"moves": game.Moves})
 }
 
 // GET
 // Get All Games of you using the token
 func GetMyGames(c *gin.Context) {
-    accountID, ID_exists := c.Get("accountID")
+	accountID, ID_exists := c.Get("accountID")
     isAdmin, Admin_exists := c.Get("isAdmin")
 	
 	if !ID_exists || !Admin_exists {
@@ -114,14 +158,15 @@ func GetMyGames(c *gin.Context) {
 		GetGames(c)
 		return
 	}
-
+	
     var games []Game
+
     if err := db.Where("player1_id = ? OR player2_id = ?", accountID, accountID).Find(&games).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not retrieve games"})
+        c.JSON(http.StatusNotFound, gin.H{"error": "No games found"})
         return
     }
 
-    c.JSON(http.StatusOK, games)
+    c.JSON(http.StatusOK, gin.H{"games": games})
 }
 
 // Get All Games If you were Admin

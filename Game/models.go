@@ -5,20 +5,18 @@ import (
 )
 
 type Game struct {
-	GameID 		string 		`gorm:"primaryKey"`
+    ID         string           `gorm:"primaryKey"`
 
-	Player1ID	string
-	Player2ID	string
+    Player1ID  string
+    Player2ID  string
 
-	Moves     	string
-	MovesNum	int			`gorm:"default:0"`
+    Moves      []string       `gorm:"type:text[]"`
 
-	StartTime   time.Time 
-    EndTime     time.Time
+    StartTime  time.Time
+    EndTime    time.Time
 
-	GameStatus  string
-
-	GameTime    time.Duration 
-    GameType    string
+    Status     string         // "win", "draw", "ongoing"
+	
+    GameType   string         // e.g., "blitz", "rapid"
+    GameTime   int            // in seconds
 }
-
