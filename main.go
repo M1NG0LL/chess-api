@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+
 	account "project/Account"
+	game "project/Game"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -31,9 +33,11 @@ func main() {
 		panic("failed to migrate database")
 	}
 
-	// Account Part ===================================================
+	// Initialize account and game packages
 	account.Init(db)
+	game.Init(db)
 
+	// Account Part ===================================================
 	router.POST("/login", account.Login)
 	router.POST("/accounts", account.CreateAccount)
 
@@ -53,7 +57,19 @@ func main() {
 
 
 	// Game Part =======================================================
+	protected.POST("/games", game.CreateGame)
+	protected.POST("/games/:id/end", game.EndGame)
 
+	protected.POST("/games/:id/move", game.MakeMove)
+
+	protected.GET("/games/:id/moves", game.GetMoves)
+
+	protected.GET("/games/my", game.GetMyGames)
+
+	protected.DELETE("/games/:id", game.DeleteGame)
+
+
+	// Team Part  =======================================================
 	
 
 	router.Run(":8081")

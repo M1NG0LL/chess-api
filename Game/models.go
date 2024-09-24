@@ -5,18 +5,18 @@ import (
 )
 
 type Game struct {
-    ID         string           `gorm:"primaryKey"`
+	ID        string   `json:"id" gorm:"primary_key"`
 
-    Player1ID  string
-    Player2ID  string
+	Player1ID string   `json:"player1_id"`
+	Player2ID string   `json:"player2_id"`
 
-    Moves      []string       `gorm:"type:text[]"`
+	Moves     []string `json:"moves" gorm:"type:text[]"`
 
-    StartTime  time.Time
-    EndTime    time.Time
-
-    Status     string         // "win", "draw", "ongoing"
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
 	
-    GameType   string         // e.g., "blitz", "rapid"
-    GameTime   int            // in seconds
+    Status    string    `json:"status"`
+	
+    GameTime  int       `json:"game_time"`
+	GameType  string    `json:"game_type"`
 }
