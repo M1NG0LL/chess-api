@@ -30,7 +30,7 @@ func main() {
 	}
 
 	// Migrate 
-	if err := db.AutoMigrate(&account.Account{}); err != nil {
+	if err := db.AutoMigrate(&account.Account{}, &game.Game{}, &team.Team{}); err != nil {
 		panic("failed to migrate database")
 	}
 
@@ -59,26 +59,32 @@ func main() {
 
 
 	// Game Part =======================================================
-	protected.POST("/games", game.CreateGame)
-	protected.POST("/games/:id/end", game.EndGame)
+	// error in finding Games 
 
-	protected.POST("/games/:id/move", game.MakeMove)
+	protected.POST("/games", game.CreateGame) // Good
+	protected.PUT("/games/:id/end", game.EndGame)
 
-	protected.GET("/games/:id/moves", game.GetMoves)
+	protected.POST("/games/:id/move", game.MakeMove) // good
 
-	protected.GET("/games/my", game.GetMyGames)
+	protected.GET("/games/:id/moves", game.GetMoves) // has errors
+
+	protected.GET("/games/my", game.GetMyGames) // Has errors
 
 	protected.DELETE("/games/:id", game.DeleteGame)
 
 
 	// Team Part  =======================================================
-	protected.POST("/teams", team.CreateTeam)
-	protected.DELETE("/teams", team.DeleteTeam)
-	protected.GET("/teams", team.GetTeams)
+	// models should have more info like name of the team
 
-	protected.POST("/teams/members", team.AddMember)
-	protected.DELETE("/teams/:id/members", team.RemoveMember)
-	protected.GET("/teams/:id/members", team.GetMembers)
+	protected.POST("/teams", team.CreateTeam) // good
+	protected.DELETE("/teams/:id", team.DeleteTeam) // need edits to delete more than the Team model 
+	protected.GET("/teams", team.GetTeams) // good
+
+	protected.POST("/teams/members", team.AddMember) // good
+	protected.DELETE("/teams/:id/members", team.RemoveMember)  // need edits to know which one will be removed
+	protected.GET("/teams/:id/members", team.GetMembers) // good
+
+	// more function like get the team by the token 
 
 
 	router.Run(":8081")
