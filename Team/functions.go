@@ -93,6 +93,8 @@ func AddMember(c *gin.Context) {
 	newMember := Member{
         ID:       account.ID,
         Username: account.Username,
+		TeamID:   team.ID,          
+        TeamName: team.Name,        
     }
 
 	team.Members = append(team.Members, newMember)
@@ -123,24 +125,27 @@ func RemoveMember(c *gin.Context) {
         return
     }
 
-	if team.LeaderID != accountID {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "You aren't Team's Leader"})
-		return
-	}
-
-	for i := 0; i < len(team.Members); i++ {
-		if team.Members[i].ID == accountID {
-			team.Members = append(team.Members[:i], team.Members[i+1:]...) // Edited: Remove member by index
+	var memberToRemove Member
+	found := false
+	for _, member := range team.Members {
+		if member.ID == accountID {
+			memberToRemove = member
+			found = true
 			break
 		}
 	}
 
-    if err := db.Save(&team).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Member not found in the team"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"team": team})
+	if err := db.Model(&team).Association("Members").Delete(&memberToRemove); err != nil { 
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove member"})
+		return
+	}
+
+    c.JSON(http.StatusOK, gin.H{"message": "Member removed successfully", "team": team})
 }
 
 // GET
@@ -159,6 +164,31 @@ func GetMembers(c *gin.Context) {
 		"TeamName": team.Name,
 		"members": team.Members,
 	})
+}
+
+// GET
+// Get Team info based on your token
+func GetTeamsByAccountID(c *gin.Context) {
+    accountID, ID_exists := c.Get("accountID")
+
+    if !ID_exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+        return
+    }
+
+    var teams []Team
+    if err := db.Preload("Members").Joins("JOIN team_members ON team_members.team_id = teams.id").
+        Where("team_members.member_id = ?", accountID).Find(&teams).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve teams"})
+        return
+    }
+
+    if len(teams) == 0 {
+        c.JSON(http.StatusNotFound, gin.H{"message": "No teams found for the user"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"teams": teams})
 }
 
 // GET
@@ -215,6 +245,11 @@ func DeleteTeam(c *gin.Context) {
 
 	if err := db.Delete(&team).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete team"})
+		return
+	}
+
+	if err := db.Where("team_id = ?", teamID).Delete(&Member{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove team members"})
 		return
 	}
 

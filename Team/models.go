@@ -19,4 +19,7 @@ type Team struct {
 type Member struct {
     ID       string `json:"id" gorm:"primaryKey"`
     Username string `json:"username"`
+
+    TeamID        string    `json:"team_id"`
+    TeamName      string    `json:"team_name"`
 }

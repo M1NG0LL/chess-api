@@ -74,17 +74,18 @@ func main() {
 
 
 	// Team Part  =======================================================
-	// models should have more info like name of the team
+	// models should have more info like name of the team := edited successfully
 
 	protected.POST("/teams", team.CreateTeam) // good
-	protected.DELETE("/teams/:id", team.DeleteTeam) // need edits to delete more than the Team model 
+	protected.DELETE("/teams/:id", team.DeleteTeam) // edited successfully 
 	protected.GET("/teams", team.GetTeams) // good
 
 	protected.POST("/teams/members", team.AddMember) // good
-	protected.DELETE("/teams/:id/members", team.RemoveMember)  // need edits to know which one will be removed
+	protected.DELETE("/teams/:id/members", team.RemoveMember)  // edited successfully
 	protected.GET("/teams/:id/members", team.GetMembers) // good
 
-	// more function like get the team by the token 
+	// more function like get the team by the token := edited successfully
+	protected.GET("/teams/my", team.GetTeamsByAccountID)
 
 
 	router.Run(":8081")
