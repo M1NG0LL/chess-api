@@ -31,6 +31,17 @@ func CreateGame(c *gin.Context) {
         return
     }
 
+     
+    if input.Player1ID == input.Player2ID { 
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Player1 and Player2 cannot be the same"})
+        return
+    }
+
+    if input.GameType != "blitz" && input.GameType != "bullet" && input.GameType != "classic" { 
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Game Type"})
+        return
+    }
+
     newGame := Game{
 		ID: uuid.New().String(),
         Player1ID: input.Player1ID,
@@ -49,7 +60,7 @@ func CreateGame(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{"game": newGame})
 }
 
-// POST
+// PUT
 // Func to Add Move to the game 
 // req = id(from the url)
 func EndGame(c *gin.Context) {
@@ -86,6 +97,10 @@ func MakeMove(c *gin.Context) {
     if err := db.First(&game, "id = ?", gameID).Error; err != nil {
         c.JSON(http.StatusNotFound, gin.H{"error": "Game not found"})
         return
+    }
+
+    if game.Status != "ongoing" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Game already ended"})
     }
 
     var input struct {
@@ -198,7 +213,7 @@ func DeleteGame(c *gin.Context) {
 	}
 
 	var game Game
-	if err := db.First(&game, "game_id = ?", GameID).Error; err != nil {
+	if err := db.First(&game, "id = ?", GameID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Game not found"})
 		return
 	}
