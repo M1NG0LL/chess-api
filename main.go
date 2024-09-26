@@ -61,30 +61,28 @@ func main() {
 	// Game Part =======================================================
 	// error in finding Games 
 
-	protected.POST("/games", game.CreateGame) // Good
-	protected.PUT("/games/:id/end", game.EndGame)
-
-	protected.POST("/games/:id/move", game.MakeMove) // good
-
-	protected.GET("/games/:id/moves", game.GetMoves) // has errors
-
-	protected.GET("/games/my", game.GetMyGames) // Has errors
-
+	router.POST("/games", game.CreateGame)
+	router.PUT("/games/:id/end", game.EndGame)
 	protected.DELETE("/games/:id", game.DeleteGame)
+
+	router.POST("/games/:id/move", game.MakeMove)
+	protected.GET("/games/:id/moves", game.GetMoves) 
+
+	protected.GET("/games/my", game.GetMyGames) 
+	protected.GET("/games/my/active", game.GetActiveGame)
 
 
 	// Team Part  =======================================================
-	// models should have more info like name of the team := edited successfully
 
-	protected.POST("/teams", team.CreateTeam) // good
-	protected.DELETE("/teams/:id", team.DeleteTeam) // edited successfully 
-	protected.GET("/teams", team.GetTeams) // good
 
-	protected.POST("/teams/members", team.AddMember) // good
-	protected.DELETE("/teams/:id/members", team.RemoveMember)  // edited successfully
-	protected.GET("/teams/:id/members", team.GetMembers) // good
+	protected.POST("/teams", team.CreateTeam)
+	protected.DELETE("/teams/:id", team.DeleteTeam)  
+	protected.GET("/teams", team.GetTeams)
 
-	// more function like get the team by the token := edited successfully
+	protected.POST("/teams/members", team.AddMember)
+	protected.DELETE("/teams/:id/members", team.RemoveMember)  
+	protected.GET("/teams/:id/members", team.GetMembers)
+
 	protected.GET("/teams/my", team.GetTeamsByAccountID)
 
 

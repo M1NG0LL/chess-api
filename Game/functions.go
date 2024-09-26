@@ -37,6 +37,12 @@ func CreateGame(c *gin.Context) {
         return
     }
 
+    var ongoingGame Game
+    if err := db.Where("status = ? AND (player1_id = ? OR player2_id = ?)", "ongoing", input.Player1ID, input.Player2ID).First(&ongoingGame).Error; err == nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "One of the players is already in an ongoing game"})
+        return
+    }
+
     if input.GameType != "blitz" && input.GameType != "bullet" && input.GameType != "classic" { 
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Game Type"})
         return
@@ -156,6 +162,25 @@ func GetMoves(c *gin.Context) {
     }
 
     c.JSON(http.StatusOK, gin.H{"moves": game.Moves})
+}
+
+// GET
+// Show Active Games for a Player
+func GetActiveGame(c *gin.Context) {
+    accountID , ID_exists := c.Get("accountID") 
+
+    if !ID_exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+    var games []Game
+    if err := db.Where("status = ? AND (player1_id = ? OR player2_id = ?)", "ongoing", accountID, accountID).Find(&games).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "No active games found for this player"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"active_games": games})
 }
 
 // GET
